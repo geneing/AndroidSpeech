@@ -1,0 +1,25 @@
+# Gradle / Android build outputs
+.gradle/
+build/
+app/build/
+app/.cxx/
+
+# Local machine configuration
+local.properties
+.idea/
+
+# Generated packages and native artifacts
+*.apk
+*.aab
+*.ap_
+*.so
+*.o
+*.a
+
+# Logs and reports
+*.log
+
+# Local screenshots and model artifacts
+screen*.png
+*.gguf
+*.wav

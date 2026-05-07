@@ -1,0 +1,110 @@
+plugins {
+    id "com.android.application"
+}
+
+def connectedTaskRequested = gradle.startParameter.taskNames.any { it.toLowerCase().contains("connected") }
+def defaultCrispAbi = connectedTaskRequested ? "x86_64" : "arm64-v8a"
+def crispAbiList = (project.findProperty("crispAbi") ?: defaultCrispAbi)
+        .toString()
+        .split(",")
+        .collect { it.trim() }
+        .findAll { !it.isEmpty() }
+
+android {
+    namespace "com.crispasr.androidspeech"
+    compileSdk 36
+    ndkVersion "29.0.14206865"
+
+    defaultConfig {
+        applicationId "com.crispasr.androidspeech"
+        minSdk 29
+        targetSdk 36
+        versionCode 1
+        versionName "0.1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17 -fexceptions -frtti"
+                arguments "-DANDROID_STL=c++_shared",
+                        "-DCRISPASR_ANDROID_ENABLE_VULKAN=ON",
+                        "-DCRISPASR_ROOT=${new File(rootDir.parentFile, 'CrispASR').absolutePath.replace('\\', '/')}",
+                        "-DVulkan_GLSLC_EXECUTABLE=C:/VulkanSDK/1.4.341.1/Bin/glslc.exe",
+                        "-DVulkan_INCLUDE_DIR=C:/VulkanSDK/1.4.341.1/Include",
+                        "-DGGML_VULKAN_SHADERS_GEN_TOOLCHAIN=${new File(rootDir, 'cmake/host-vulkan-shaders-windows.cmake').absolutePath.replace('\\', '/')}"
+            }
+        }
+
+        ndk {
+            abiFilters(*crispAbiList)
+        }
+    }
+
+    buildTypes {
+        debug {
+            jniDebuggable true
+            debuggable true
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "4.1.2"
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    testImplementation "junit:junit:4.13.2"
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
+    androidTestImplementation "androidx.test:runner:1.6.2"
+}
+
+tasks.register("clearDeviceModelsForConnectedTests") {
+    group = "verification"
+    description = "Clears only legacy app-private GGUF files before connected tests; shared media models are preserved."
+    doLast {
+        def adb = new File(android.sdkDirectory, "platform-tools/adb.exe")
+        if (!adb.exists()) {
+            adb = new File(android.sdkDirectory, "platform-tools/adb")
+        }
+        def deviceList = new ByteArrayOutputStream()
+        exec {
+            executable adb.absolutePath
+            args "devices"
+            standardOutput = deviceList
+        }
+        deviceList.toString()
+                .readLines()
+                .findAll { it.endsWith("\tdevice") }
+                .collect { it.split("\\s+")[0] }
+                .each { serial ->
+                    logger.lifecycle("Clearing GGUF model directory on ${serial} before connected tests")
+                    exec {
+                        executable adb.absolutePath
+                        args "-s", serial, "shell", "rm", "-rf",
+                                "/sdcard/Android/data/${android.defaultConfig.applicationId}/files/CrispASR"
+                    }
+                }
+    }
+}
+
+tasks.matching { it.name == "connectedDebugAndroidTest" }.configureEach {
+    dependsOn("clearDeviceModelsForConnectedTests")
+}

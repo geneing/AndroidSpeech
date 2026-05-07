@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Crisp Android Speech</string>
+    <string name="engine_label">Crisp GGUF TTS</string>
+</resources>
