@@ -3,10 +3,18 @@
 build/
 app/build/
 app/.cxx/
+.cxx/
+.externalNativeBuild/
+captures/
+output-metadata.json
 
 # Local machine configuration
 local.properties
 .idea/
+*.iml
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
 
 # Generated packages and native artifacts
 *.apk
@@ -16,8 +24,16 @@ local.properties
 *.o
 *.a
 
-# Logs and reports
+# Keystore files
+*.jks
+*.keystore
+
+# Google Services
+google-services.json
+
+# Logs, reports, and profiling
 *.log
+*.hprof
 
 # Local screenshots and model artifacts
 screen*.png
